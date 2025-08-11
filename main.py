@@ -11,7 +11,7 @@ from talkehr_agent import TalkEHRBot
 from doc_agent import convert_document
 
 
-CHROMEDRIVER_PATH = "/home/talha-mehmood/Documents/Fax_automation/chromedriver"
+CHROMEDRIVER_PATH = "/home/talha-mehmood/PycharmProjects/Fax_automation/chromedriver"
 DEBUGGER_ADDRESS  = "localhost:9222"
 SLEEP_BETWEEN_OK_RUNS = 3
 

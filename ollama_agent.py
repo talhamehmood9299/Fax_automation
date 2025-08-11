@@ -1,11 +1,15 @@
 import json
 import re
-from ollama import chat
 from datetime import datetime
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
+import os
+from dotenv import load_dotenv
 from openai import OpenAI
 
-client = OpenAI(api_key="")
+load_dotenv()
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+MODEL_NAME = "gpt-5"
 
 class DocumentInformation(BaseModel):
     patient_name: str
@@ -16,13 +20,13 @@ class DocumentInformation(BaseModel):
 def openai(messages, response_text):
     if response_text:
         completion = client.chat.completions.parse(
-            model="gpt-4.1",
+            model=MODEL_NAME,
             messages=messages,
             response_format=response_text,
         )
     else:
         completion = client.chat.completions.parse(
-            model="gpt-4.1",
+            model=MODEL_NAME,
             messages=messages,
         )
     return completion.choices[0].message
