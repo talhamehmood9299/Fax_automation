@@ -1,14 +1,20 @@
 import json
+import os
+from typing import Dict, Any, Optional
 
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-from typing import Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
+RAG_DB_DIR = os.getenv("RAG_DB_DIR", "rag_corrections_db")
 
 class RAGCorrectionStore:
-    def __init__(self, persist_dir="rag_corrections_db"):
+    def __init__(self, persist_dir: Optional[str] = None):
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
-        self.client = chromadb.PersistentClient(path=persist_dir)
+        db_dir = persist_dir or RAG_DB_DIR
+        self.client = chromadb.PersistentClient(path=db_dir)
         self.collection = self.client.get_or_create_collection("corrections")
 
     def _embed(self, text: str):
@@ -67,4 +73,3 @@ if __name__ == "__main__":
 
     # 6. Query with slightly higher threshold (more strict)
     print("\nJohn Doe, strict threshold:", store.query(similar_doc1, threshold=0.9))
-

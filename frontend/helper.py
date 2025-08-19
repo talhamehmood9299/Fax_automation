@@ -12,21 +12,17 @@ def normalize_name(text: str) -> str:
 def first_name_only(raw: str) -> str:
     if not raw:
         return ""
-    # "Last, First ..." -> take first after comma
     if "," in raw:
         after = raw.split(",", 1)[1].strip()
         return after.split()[0].lower() if after else ""
-    # Otherwise first token
     return normalize_name(raw).split()[0] if raw else ""
 
 def last_name_tokens(raw: str):
-    """Return tokens we consider 'last names' from the target patient_name."""
     if not raw:
         return []
     if "," in raw:
         last = raw.split(",", 1)[0]
         return [t for t in normalize_name(last).split() if t]
-    # No comma -> assume "First Last ..." -> everything but first is last
     toks = normalize_name(raw).split()
     return toks[1:] if len(toks) > 1 else []
 
@@ -37,10 +33,6 @@ def strong_enough_match(target_full: str, candidate_full: str,
                         base_threshold: float = 0.70,
                         relaxed_threshold: float = 0.60,
                         last_partial_thresh: int = 80) -> tuple[bool, float, str]:
-    """
-    Decide if candidate matches target_full strongly enough.
-    Returns (ok, score_used, reason).
-    """
     t_norm = normalize_name(target_full)
     c_norm = normalize_name(candidate_full)
 
@@ -51,25 +43,15 @@ def strong_enough_match(target_full: str, candidate_full: str,
     last_tokens = last_name_tokens(target_full)
     last_ok = any(fuzz.partial_ratio(ln, c_norm) >= last_partial_thresh for ln in last_tokens)
 
-    # 1) standard rule
     if score_token >= base_threshold:
         return True, score_token, "token_set >= base_threshold"
-
-    # 2) first name exact + relaxed global similarity
     if first_ok and score_token >= relaxed_threshold:
         return True, score_token, "first name exact + relaxed token_set"
-
-    # 3) first name exact + any last name partial good
     if first_ok and last_ok:
         return True, max(score_token, score_partial), "first exact + last partial"
-
-    # 4) partial similarity bailout (high)
     if score_partial >= base_threshold:
         return True, score_partial, "partial >= base_threshold"
-
     return False, score_token, "no rule matched"
-
-
 
 def _visible_non_loading_options(driver) -> List[Tuple[object, str]]:
     out = []
@@ -90,7 +72,6 @@ def _visible_non_loading_options(driver) -> List[Tuple[object, str]]:
     except Exception:
         pass
     return out
-
 
 def _click_option_by_text(driver, target_text: str, retries: int = 3, sleep: float = 0.2) -> bool:
     css = ".mat-autocomplete-panel mat-option"
@@ -116,3 +97,4 @@ def _click_option_by_text(driver, target_text: str, retries: int = 3, sleep: flo
     if last_exc:
         print(f"[doc_type] Click by text failed: {last_exc}")
     return False
+

@@ -45,3 +45,4 @@ def convert_document(url):
                 print(f"Warning: Skipped a PictureItem—no image extracted for {element_image_filename}")
 
     return conv_res.document.export_to_markdown()
+

@@ -9,7 +9,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from helper import _click_option_by_text, _visible_non_loading_options, strong_enough_match
+try:
+    from .helper import _click_option_by_text, _visible_non_loading_options, strong_enough_match  # type: ignore
+except Exception:
+    from helper import _click_option_by_text, _visible_non_loading_options, strong_enough_match  # type: ignore
 
 
 def click_patient_row_with_retries(driver, idx, expected_text, retries=3, sleep=0.2):
@@ -51,12 +54,13 @@ def first_name_only(raw: str) -> str:
     if "," in raw:
         parts = raw.split(",", 1)[1].strip().split()
         return parts[0].lower() if parts else ""
-    # Else take the first token
     tokens = re.sub(r"[^\w\s]", " ", raw).strip().split()
     return tokens[0].lower() if tokens else ""
 
+
 def token_similarity(a: str, b: str) -> float:
     return fuzz.token_set_ratio(a, b) / 100.0
+
 
 class TalkEHRBot:
     def __init__(self, driver):
@@ -90,7 +94,6 @@ class TalkEHRBot:
                     continue
                 elem = rows[idx] if idx < len(rows) else None
                 if elem is None:
-                    # fallback: find by text
                     elem = next((r for r in rows if expected_text.lower() in r.text.lower()), None)
                     if elem is None:
                         time.sleep(sleep)
@@ -112,7 +115,6 @@ class TalkEHRBot:
         print(f"Failed to click patient after {retries} retries. Last error: {last_exc}")
         return False
 
-    # ---- main function ----
     def select_patient(self, date_of_birth, patient_name) -> bool:
         try:
             search_input = WebDriverWait(self.driver, 10).until(
@@ -457,4 +459,3 @@ class TalkEHRBot:
         )
         btn.click()
         print("Save button clicked.")
-

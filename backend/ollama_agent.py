@@ -9,7 +9,7 @@ from openai import OpenAI
 load_dotenv()
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-MODEL_NAME = "gpt-5"
+MODEL_NAME = "gpt-4.1"
 
 class DocumentInformation(BaseModel):
     patient_name: str

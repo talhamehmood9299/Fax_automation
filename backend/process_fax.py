@@ -1,6 +1,6 @@
 from typing_extensions import TypedDict
+from typing import Dict, Any
 from langgraph.graph import StateGraph, START, END
-from IPython.display import Image, display
 
 class AgentState(TypedDict):
     input_text: str
@@ -12,7 +12,7 @@ class AgentState(TypedDict):
     comment: str
 
 def call_llm_1(state: AgentState) -> dict:
-    from ollama_agent import extract_information
+    from .ollama_agent import extract_information
     md = state["input_text"]
     date_of_birth, patient_name, provider_name = extract_information(md)
     return {
@@ -22,19 +22,19 @@ def call_llm_1(state: AgentState) -> dict:
     }
 
 def call_llm_2(state: AgentState) -> dict:
-    from ollama_agent import find_doctype
+    from .ollama_agent import find_doctype
     md = state["input_text"]
     doc_type = find_doctype(md)
     return {"doc_type": doc_type}
 
 def call_llm_3(state: AgentState) -> dict:
-    from ollama_agent import find_sub_doctype
+    from .ollama_agent import find_sub_doctype
     md = state["input_text"]
     doc_subtype = find_sub_doctype(md)
     return {"doc_subtype": doc_subtype}
 
 def call_llm_4(state: AgentState) ->dict:
-    from ollama_agent import generate_document_comments
+    from .ollama_agent import generate_document_comments
     md = state["input_text"]
     comment = generate_document_comments(md)
     return {"comment": comment}
@@ -75,10 +75,25 @@ parallel_builder.add_edge("call_llm_4", "aggregator")
 parallel_builder.add_edge("aggregator", END)
 parallel_workflow = parallel_builder.compile()
 
-try:
-    display(Image(parallel_workflow.get_graph().draw_mermaid_png()))
-except Exception as e:
-    print("Graph display failed:", e)
+def _apply_rag_corrections(state: dict) -> dict:
+    """Query RAG for known corrections and apply them if found.
+    Only overrides keys that exist in the stored correction (e.g., doc_type/doc_subtype).
+    """
+    try:
+        from .correction_store_rag import RAGCorrectionStore
+        store = RAGCorrectionStore()
+        doc_text = state.get("input_text", "")
+        if not doc_text:
+            return state
+        correction: Dict[str, Any] = store.query(doc_text)
+        if correction:
+            for k in ("doc_type", "doc_subtype"):
+                if k in correction and correction[k]:
+                    state[k] = correction[k]
+    except Exception as e:
+        # Fail-safe: if RAG not available, continue without corrections
+        print(f"RAG correction lookup failed or unavailable: {e}")
+    return state
 
 def init_agent_state() -> AgentState:
     return {
@@ -95,4 +110,6 @@ def process_fax(input_text: str) -> AgentState:
     state = init_agent_state()
     state["input_text"] = input_text
     state = parallel_workflow.invoke(state)
+    # Apply any known user-provided corrections from RAG
+    state = _apply_rag_corrections(state)
     return state
