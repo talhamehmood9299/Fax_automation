@@ -57,6 +57,12 @@ def _load_env_robust():
                 load_dotenv(cwd_env)
                 env_loaded = True
         if not env_loaded:
+            # Try .env next to this script (frontend/.env)
+            here_env = os.path.join(os.path.dirname(__file__), ".env")
+            if os.path.exists(here_env):
+                load_dotenv(here_env)
+                env_loaded = True
+        if not env_loaded:
             load_dotenv()
     except Exception:
         # Best-effort; continue without .env
@@ -64,7 +70,7 @@ def _load_env_robust():
 
 
 _load_env_robust()
-API = "https://60915e37b2d3.ngrok-free.app"
+API = os.getenv("API_BASE_URL", "https://60915e37b2d3.ngrok-free.app")
 CHROMEDRIVER_PATH = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
 DEBUGGER_ADDRESS = os.getenv("DEBUGGER_ADDRESS", "localhost:9222")
 SLEEP_BETWEEN_OK_RUNS = int(os.getenv("SLEEP_BETWEEN_OK_RUNS", "3"))

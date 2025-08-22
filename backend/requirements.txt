@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+requests
+python-dotenv
+openai==1.99.9
+chromadb
+sentence-transformers
+langgraph
+docling
+docling-core
+

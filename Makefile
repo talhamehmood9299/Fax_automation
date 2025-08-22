@@ -19,3 +19,17 @@ docker-run:
 
 package:
 	bash ./frontend/package.sh
+
+.PHONY: package-linux package-mac package-win
+
+# Explicit OS targets for clarity/consistency
+package-linux:
+	bash ./frontend/package.sh
+
+package-mac:
+	bash ./frontend/package.sh
+
+# Run this on a Windows machine (or via CI)
+package-win:
+	@echo "On Windows, run: frontend\\package-win.bat"
+	@echo "Or in CI, the workflow runs: pyinstaller FaxAutomationClient.spec"

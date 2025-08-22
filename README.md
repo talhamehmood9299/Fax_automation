@@ -40,27 +40,41 @@ google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-9222
 
 ## Setup
 
+Recommended: install backend and frontend deps separately.
+
+Backend (API server):
 ```
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
-Copy the sample env and edit values:
+Frontend (desktop client for development runs):
+```
+python -m venv .venv
+source .venv/bin/activate
+pip install -r frontend/requirements.txt
+```
+
+Copy the sample envs and edit values:
 
 ```
-cp .env.example .env
-# then edit .env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+ # Optionally keep a root .env for legacy tools
 ```
 
-Environment keys supported (see `.env.example`):
+Environment keys supported
 
-- `OPENAI_API_KEY`: your OpenAI API key
-- `CHROMEDRIVER_PATH`: absolute path to `chromedriver`
-- `DEBUGGER_ADDRESS`: e.g., `localhost:9222` for the remote Chrome session
-- `SLEEP_BETWEEN_OK_RUNS`: seconds to wait between successful Normal loop iterations
-- `API_BASE_URL`: frontend → backend server URL (default `http://127.0.0.1:8000`)
-- `RAG_DB_DIR`: directory where the Chroma RAG DB persists (default `rag_corrections_db`)
+- Backend (`backend/.env`):
+  - `OPENAI_API_KEY`: your OpenAI API key
+  - `RAG_DB_DIR`: directory where the Chroma RAG DB persists (default `rag_corrections_db`)
+  - Optional tool paths like `TESSERACT_CMD`
+- Frontend (`frontend/.env`):
+  - `CHROMEDRIVER_PATH`: absolute path to `chromedriver`
+  - `DEBUGGER_ADDRESS`: e.g., `localhost:9222` for the remote Chrome session
+  - `SLEEP_BETWEEN_OK_RUNS`: seconds between successful Normal loop iterations
+  - Optional: `API_BASE_URL` if you adapt the client to read it
 
 ---
 
@@ -212,3 +226,15 @@ Artifacts:
 - Windows build on Windows host: run `frontend\package-win.bat`
   - PyInstaller does not cross-compile; to get a `.exe` you must build on Windows.
   - Ensure the same Python and dependency versions on Windows before packaging.
+
+### CI Builds (GitHub Actions)
+
+This repo includes a workflow that builds native binaries on Windows, macOS, and Ubuntu using GitHub-hosted runners.
+
+- Trigger: Push to `main`/`master`, pull requests, or manual via “Run workflow”.
+- Location: GitHub → Actions → “Build Desktop Apps”.
+- Output: Per-OS artifacts uploaded from `dist/` as `FaxAutomationClient-<OS>`.
+
+Notes:
+- PyInstaller uses platform-specific bootloaders, so each OS is built on its native runner.
+- These builds package only the frontend and its minimal dependencies; the backend and heavy ML libs are not part of the desktop binary.

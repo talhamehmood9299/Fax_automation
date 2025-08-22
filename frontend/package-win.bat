@@ -1,5 +1,5 @@
 @echo off
-REM Build a single-file Windows .exe using PyInstaller
+REM Build the Windows .exe using the shared PyInstaller spec
 REM Usage: package-win.bat
 
 where pyinstaller >nul 2>nul
@@ -9,9 +9,13 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 set APP_NAME=FaxAutomationClient
-set ENTRY=frontend\client.py
 
-pyinstaller --noconfirm --onefile --windowed --name %APP_NAME% %ENTRY%
+REM Use the .spec so hiddenimports and options match other OS builds
+pyinstaller --noconfirm FaxAutomationClient.spec
+
+if %ERRORLEVEL% NEQ 0 (
+  echo Build failed.
+  exit /b %ERRORLEVEL%
+)
 
 echo Build complete. See dist\%APP_NAME%.exe
-

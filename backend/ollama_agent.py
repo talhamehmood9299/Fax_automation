@@ -6,7 +6,15 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+# Load backend-specific .env first (backend/.env), then fall back to defaults
+try:
+    _here_env = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(_here_env):
+        load_dotenv(_here_env)
+    else:
+        load_dotenv()
+except Exception:
+    load_dotenv()
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 MODEL_NAME = "gpt-4.1"
@@ -194,5 +202,4 @@ def generate_document_comments(document: str) -> str:
     )
     final_response = response.content.strip() if hasattr(response, 'content') else str(response).strip()
     return final_response
-
 

@@ -7,7 +7,16 @@ from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load backend-specific .env first (backend/.env), then fall back to defaults
+try:
+    _here_env = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(_here_env):
+        load_dotenv(_here_env)
+    else:
+        load_dotenv()
+except Exception:
+    load_dotenv()
+
 RAG_DB_DIR = os.getenv("RAG_DB_DIR", "rag_corrections_db")
 
 class RAGCorrectionStore:
