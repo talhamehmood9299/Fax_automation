@@ -42,4 +42,20 @@ pyinstaller \
   --name "$APP_NAME" \
   "$ENTRY"
 
-echo "Build complete. Single file is in dist/$APP_NAME (Linux/mac) or dist/$APP_NAME.exe (Windows)"
+# Place chromedriver next to the built binary so the path is consistent across OSes
+OS_NAME=$(uname -s || echo unknown)
+if [ "$OS_NAME" = "Darwin" ]; then
+  DEST_DIR="dist/$APP_NAME.app/Contents/MacOS"
+else
+  DEST_DIR="dist"
+fi
+
+if [ -f ./chromedriver ]; then
+  mkdir -p "$DEST_DIR"
+  cp -f ./chromedriver "$DEST_DIR/chromedriver"
+  echo "Copied chromedriver to $DEST_DIR/chromedriver"
+else
+  echo "Note: ./chromedriver not found in repo root. Skipping copy."
+fi
+
+echo "Build complete. Binary and (optional) chromedriver are in $DEST_DIR"

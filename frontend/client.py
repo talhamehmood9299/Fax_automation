@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from shutil import which
 
 try:
     # When running as a package (python -m frontend.client)
@@ -71,16 +72,65 @@ def _load_env_robust():
 
 _load_env_robust()
 API = os.getenv("API_BASE_URL", "https://60915e37b2d3.ngrok-free.app")
-CHROMEDRIVER_PATH = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
 DEBUGGER_ADDRESS = os.getenv("DEBUGGER_ADDRESS", "localhost:9222")
 SLEEP_BETWEEN_OK_RUNS = int(os.getenv("SLEEP_BETWEEN_OK_RUNS", "3"))
+
+
+def _discover_chromedriver() -> str | None:
+    """Find a chromedriver in a consistent, cross-platform way.
+
+    Priority:
+    1) CHROMEDRIVER_PATH env var if it exists
+    2) Same directory as the built binary (PyInstaller onefile)
+    3) Current working directory
+    4) Project root (repo root) and frontend/ directory
+    5) chromedriver on PATH (via Selenium Manager or system install)
+    """
+    # 1) Explicit env var
+    env_path = os.getenv("CHROMEDRIVER_PATH")
+    if env_path and os.path.exists(env_path):
+        return env_path
+
+    exe_name = "chromedriver.exe" if os.name == "nt" else "chromedriver"
+
+    candidates = []
+    # 2) Next to the bundled executable (PyInstaller onefile)
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        candidates.append(os.path.join(exe_dir, exe_name))
+
+    # 3) Current working directory
+    candidates.append(os.path.join(os.getcwd(), exe_name))
+
+    # 4) Project root and frontend dir (use this file as anchor)
+    here = os.path.dirname(__file__)
+    repo_root = os.path.abspath(os.path.join(here, ".."))
+    candidates.append(os.path.join(repo_root, exe_name))
+    candidates.append(os.path.join(here, exe_name))
+
+    for p in candidates:
+        if os.path.exists(p) and os.access(p, os.X_OK):
+            return p
+
+    # 5) On PATH
+    path_found = which("chromedriver") or which(exe_name)
+    if path_found:
+        return path_found
+
+    return None
 
 
 def build_driver() -> webdriver.Chrome:
     chrome_options = Options()
     chrome_options.add_experimental_option("debuggerAddress", DEBUGGER_ADDRESS)
-    service = Service(CHROMEDRIVER_PATH)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    # Prefer a bundled/sibling chromedriver if found; otherwise let Selenium Manager resolve
+    cd_path = _discover_chromedriver()
+    if cd_path:
+        service = Service(cd_path)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+    else:
+        # Selenium 4.6+ can auto-manage drivers; no path needed
+        driver = webdriver.Chrome(options=chrome_options)
     time.sleep(2)
     return driver
 

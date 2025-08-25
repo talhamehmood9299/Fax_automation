@@ -71,7 +71,7 @@ Environment keys supported
   - `RAG_DB_DIR`: directory where the Chroma RAG DB persists (default `rag_corrections_db`)
   - Optional tool paths like `TESSERACT_CMD`
 - Frontend (`frontend/.env`):
-  - `CHROMEDRIVER_PATH`: absolute path to `chromedriver`
+  - `CHROMEDRIVER_PATH` (optional): absolute path to `chromedriver`. If not set, the app auto-discovers one next to the built binary or on PATH.
   - `DEBUGGER_ADDRESS`: e.g., `localhost:9222` for the remote Chrome session
   - `SLEEP_BETWEEN_OK_RUNS`: seconds between successful Normal loop iterations
   - Optional: `API_BASE_URL` if you adapt the client to read it
@@ -115,6 +115,21 @@ docker run --rm -p 8000:8000 \
 Notes:
 - Backend does not run Selenium. It only processes Markdown and stores corrections.
 - Use the Makefile for shortcuts: `make docker-build`, `make docker-run`, `make server`, `make client`, `make package`.
+
+### ChromeDriver Location (Unified Across OS)
+
+The client auto-discovers ChromeDriver using this order:
+- `CHROMEDRIVER_PATH` env var, if set and exists
+- Same directory as the built app (Windows: `dist/`, Linux: `dist/`, macOS: `dist/FaxAutomationClient.app/Contents/MacOS/`)
+- Current working directory
+- Repo root and `frontend/`
+- On `PATH` (Selenium Manager/system install)
+
+Packaging scripts copy `chromedriver` next to the built binary so the directory is the same across OS builds:
+- Linux/macOS: `frontend/package.sh` copies `./chromedriver` to `dist/` (macOS inside the `.app/Contents/MacOS`)
+- Windows: `frontend/package-win.bat` copies `chromedriver.exe` to `dist/`
+
+You can still override with `CHROMEDRIVER_PATH` if you prefer a custom location.
 
 ### Run with Docker Compose
 
@@ -189,7 +204,7 @@ requirements.txt
 
 - Chrome Attach Fails:
   - Ensure Chrome was launched with `--remote-debugging-port=9222` and your `DEBUGGER_ADDRESS` matches.
-  - Verify `CHROMEDRIVER_PATH` points to a chromedriver matching your Chrome version.
+  - Ensure a matching ChromeDriver is next to the built app, on PATH, or set `CHROMEDRIVER_PATH` explicitly.
 
 - OCR/Doc Conversion Issues:
   - Ensure Tesseract is installed and on PATH; `docling` expects it. You can set the command in code if needed.

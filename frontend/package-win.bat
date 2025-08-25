@@ -18,4 +18,16 @@ if %ERRORLEVEL% NEQ 0 (
   exit /b %ERRORLEVEL%
 )
 
+REM Place chromedriver.exe next to the built .exe for consistent path
+if exist chromedriver.exe (
+  copy /Y chromedriver.exe dist\chromedriver.exe >nul
+  if %ERRORLEVEL% EQU 0 (
+    echo Copied chromedriver.exe to dist\chromedriver.exe
+  ) else (
+    echo Warning: Failed to copy chromedriver.exe to dist\
+  )
+) else (
+  echo Note: chromedriver.exe not found in repo root. Skipping copy.
+)
+
 echo Build complete. See dist\%APP_NAME%.exe
