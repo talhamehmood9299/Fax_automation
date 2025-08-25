@@ -56,12 +56,11 @@ source .venv/bin/activate
 pip install -r frontend/requirements.txt
 ```
 
-Copy the sample envs and edit values:
+Copy the sample envs and edit values (no root .env):
 
 ```
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
- # Optionally keep a root .env for legacy tools
 ```
 
 Environment keys supported
@@ -75,6 +74,19 @@ Environment keys supported
   - `DEBUGGER_ADDRESS`: e.g., `localhost:9222` for the remote Chrome session
   - `SLEEP_BETWEEN_OK_RUNS`: seconds between successful Normal loop iterations
   - Optional: `API_BASE_URL` if you adapt the client to read it
+
+### Frontend Env Loading (Build vs Runtime)
+
+- Packaging (`make package` or `frontend/package.sh`) does not read `frontend/.env`.
+- At runtime, the client loads env in this order:
+  1) `.env` next to the built executable (preferred for packaged builds)
+  2) `frontend/.env` (when running from source)
+  3) `.env` in the current working directory
+  4) OS environment variables
+
+Place a `.env` next to the packaged binary with at least `API_BASE_URL` and `DEBUGGER_ADDRESS`.
+  - Linux/Windows: `dist/.env`
+  - macOS: `dist/FaxAutomationClient.app/Contents/MacOS/.env`
 
 ---
 
@@ -108,7 +120,7 @@ Run the container:
 
 ```
 docker run --rm -p 8000:8000 \
-  --env-file .env \
+  --env-file backend/.env \
   fax-backend
 ```
 

@@ -30,4 +30,16 @@ if exist chromedriver.exe (
   echo Note: chromedriver.exe not found in repo root. Skipping copy.
 )
 
+REM Copy frontend\.env so packaged app reads API_BASE_URL without extra steps
+if exist frontend\.env (
+  copy /Y frontend\.env dist\.env >nul
+  if %ERRORLEVEL% EQU 0 (
+    echo Copied frontend\.env to dist\.env
+  ) else (
+    echo Warning: Failed to copy frontend\.env to dist\
+  )
+) else (
+  echo Note: frontend\.env not found. App will use defaults unless a .env is placed next to the exe.
+)
+
 echo Build complete. See dist\%APP_NAME%.exe

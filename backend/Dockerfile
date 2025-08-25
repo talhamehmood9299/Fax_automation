@@ -39,7 +39,7 @@ VOLUME ["/app/rag_corrections_db"]
 # NOTE: Chromedriver must be provided/mounted at /app/chromedriver to match host Chrome version.
 # Example run (Linux):
 # docker run --rm -p 8000:8000 \
-#   --env-file .env \
+#   --env-file backend/.env \
 #   -e DEBUGGER_ADDRESS=host.docker.internal:9222 \
 #   -e CHROMEDRIVER_PATH=/app/chromedriver \
 #   -v $(pwd)/rag_corrections_db:/app/rag_corrections_db \
@@ -48,4 +48,3 @@ VOLUME ["/app/rag_corrections_db"]
 #   fax-backend
 
 CMD ["uvicorn", "backend.server:app", "--host", "0.0.0.0", "--port", "8000"]
-

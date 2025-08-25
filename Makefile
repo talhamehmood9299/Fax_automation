@@ -15,7 +15,7 @@ docker-build:
 	docker build -f backend/Dockerfile -t fax-backend .
 
 docker-run:
-	docker run --rm -p $(API_PORT):8000 --env-file .env fax-backend
+	docker run --rm -p $(API_PORT):8000 --env-file backend/.env fax-backend
 
 package:
 	bash ./frontend/package.sh

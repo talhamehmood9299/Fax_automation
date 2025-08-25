@@ -35,12 +35,13 @@ except Exception:
 
 
 def _load_env_robust():
-    """Load .env from sensible locations for both source and PyInstaller onefile.
+    """Load .env for both source runs and PyInstaller onefile.
 
     Priority:
     1) .env next to the executable (PyInstaller onefile)
-    2) .env in current working directory
-    3) default dotenv search
+    2) frontend/.env (this file's directory)
+    3) .env in current working directory
+    4) default dotenv search / OS env
     """
     try:
         env_loaded = False
@@ -52,16 +53,16 @@ def _load_env_robust():
                 load_dotenv(candidate)
                 env_loaded = True
         if not env_loaded:
-            # Try CWD .env
-            cwd_env = os.path.join(os.getcwd(), ".env")
-            if os.path.exists(cwd_env):
-                load_dotenv(cwd_env)
-                env_loaded = True
-        if not env_loaded:
-            # Try .env next to this script (frontend/.env)
+            # Prefer frontend/.env when running from source
             here_env = os.path.join(os.path.dirname(__file__), ".env")
             if os.path.exists(here_env):
                 load_dotenv(here_env)
+                env_loaded = True
+        if not env_loaded:
+            # Then try CWD .env
+            cwd_env = os.path.join(os.getcwd(), ".env")
+            if os.path.exists(cwd_env):
+                load_dotenv(cwd_env)
                 env_loaded = True
         if not env_loaded:
             load_dotenv()
@@ -70,10 +71,18 @@ def _load_env_robust():
         pass
 
 
-_load_env_robust()
-API = os.getenv("API_BASE_URL", "https://60915e37b2d3.ngrok-free.app")
-DEBUGGER_ADDRESS = os.getenv("DEBUGGER_ADDRESS", "localhost:9222")
-SLEEP_BETWEEN_OK_RUNS = int(os.getenv("SLEEP_BETWEEN_OK_RUNS", "3"))
+def _get_settings() -> dict:
+    """Load env at runtime and return settings.
+
+    Intentionally not called at import time to avoid involving
+    frontend/.env during packaging builds.
+    """
+    _load_env_robust()
+    return {
+        "API_BASE_URL": os.getenv("API_BASE_URL", "http://localhost:8000"),
+        "DEBUGGER_ADDRESS": os.getenv("DEBUGGER_ADDRESS", "localhost:9222"),
+        "SLEEP_BETWEEN_OK_RUNS": int(os.getenv("SLEEP_BETWEEN_OK_RUNS", "3")),
+    }
 
 
 def _discover_chromedriver() -> str | None:
@@ -120,9 +129,9 @@ def _discover_chromedriver() -> str | None:
     return None
 
 
-def build_driver() -> webdriver.Chrome:
+def build_driver(debugger_address: str) -> webdriver.Chrome:
     chrome_options = Options()
-    chrome_options.add_experimental_option("debuggerAddress", DEBUGGER_ADDRESS)
+    chrome_options.add_experimental_option("debuggerAddress", debugger_address)
     # Prefer a bundled/sibling chromedriver if found; otherwise let Selenium Manager resolve
     cd_path = _discover_chromedriver()
     if cd_path:
@@ -140,6 +149,12 @@ class App(tk.Tk):
         super().__init__()
         self.title("Fax Automation - Client")
         self.geometry("720x520")
+
+        # Load runtime settings once per app instance
+        cfg = _get_settings()
+        self.api_base_url = cfg["API_BASE_URL"]
+        self.debugger_address = cfg["DEBUGGER_ADDRESS"]
+        self.sleep_between_ok_runs = cfg["SLEEP_BETWEEN_OK_RUNS"]
 
         self._current_md = ""
         self._build_menu()
@@ -204,8 +219,8 @@ class App(tk.Tk):
         version = "0.1.0"
         info = (
             f"{app_name} v{version}\n\n"
-            f"Backend: {API}\n"
-            f"Chrome debugger: {DEBUGGER_ADDRESS}\n"
+            f"Backend: {self.api_base_url}\n"
+            f"Chrome debugger: {self.debugger_address}\n"
         )
         messagebox.showinfo("About", info)
 
@@ -219,7 +234,7 @@ class App(tk.Tk):
         def _task():
             driver = None
             try:
-                driver = build_driver()
+                driver = build_driver(self.debugger_address)
                 bot = TalkEHRBot(driver)
                 while not self._stop_normal.is_set():
                     ok = self._run_once(bot)
@@ -227,7 +242,7 @@ class App(tk.Tk):
                         self._log("Normal iteration failed; stopping.")
                         break
                     self._log("Iteration complete. Waiting…")
-                    time.sleep(SLEEP_BETWEEN_OK_RUNS)
+                    time.sleep(self.sleep_between_ok_runs)
             except Exception as e:
                 self._log(f"Normal error: {e}")
             finally:
@@ -247,7 +262,7 @@ class App(tk.Tk):
     def health_check(self):
         def _task():
             try:
-                r = requests.get(f"{API}/health", timeout=10)
+                r = requests.get(f"{self.api_base_url}/health", timeout=10)
                 r.raise_for_status()
                 self._log(f"Health: {r.json()}")
             except Exception as e:
@@ -260,7 +275,7 @@ class App(tk.Tk):
         def _task():
             try:
                 if not hasattr(self, "_driver") or self._driver is None:
-                    self._driver = build_driver()
+                    self._driver = build_driver(self.debugger_address)
                     self._bot = TalkEHRBot(self._driver)
                 ok = self._run_once(self._bot, capture=True)
                 if not ok:
@@ -278,7 +293,7 @@ class App(tk.Tk):
             return False
         # Ask backend to convert and process with LLM + RAG
         self._log("Sending URL to server for processing…")
-        r = requests.post(f"{API}/process_url", json={"url": link}, timeout=None)
+        r = requests.post(f"{self.api_base_url}/process_url", json={"url": link}, timeout=None)
         r.raise_for_status()
         st = r.json()
         self._current_md = st.get("md", "")
@@ -351,7 +366,7 @@ class App(tk.Tk):
         }
         def _task():
             try:
-                r = requests.post(f"{API}/training/save_correction", json=body, timeout=20)
+                r = requests.post(f"{self.api_base_url}/training/save_correction", json=body, timeout=20)
                 r.raise_for_status()
                 self._log("Saved correction to server RAG store.")
             except Exception as e:

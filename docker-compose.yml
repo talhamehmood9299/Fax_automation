@@ -9,7 +9,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     env_file:
-      - .env
+      - backend/.env
     volumes:
       - ./rag_corrections_db:/app/rag_corrections_db
     restart: unless-stopped
@@ -23,8 +23,8 @@ services:
     image: ngrok/ngrok:alpine
     container_name: fax-ngrok
     restart: unless-stopped
-    environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    env_file:
+      - backend/.env
     command: http --host-header=rewrite backend:8000
     depends_on:
       - backend
