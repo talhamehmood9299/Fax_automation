@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-22.04, windows-latest, macos-latest]
 
     steps:
       - name: Checkout
@@ -41,9 +41,21 @@ jobs:
         shell: bash
         run: bash frontend/package.sh
 
+      - name: Archive Linux build as tar.gz (preserve exec perms)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cd dist
+          FILES=(FaxAutomationClient)
+          [ -f chromedriver ] && FILES+=(chromedriver)
+          [ -f .env ] && FILES+=(.env)
+          tar -czf FaxAutomationClient-linux-x64.tar.gz "${FILES[@]}"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: FaxAutomationClient-${{ runner.os }}
-          path: dist/**
+          path: |
+            dist/**
+            dist/FaxAutomationClient-linux-x64.tar.gz
           if-no-files-found: error
