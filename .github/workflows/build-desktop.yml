@@ -32,9 +32,37 @@ jobs:
       - name: Install frontend requirements
         run: pip install --upgrade -r frontend/requirements.txt
 
+      - name: Create frontend .env (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          : ${API_BASE_URL:=${{ secrets.API_BASE_URL }}}
+          : ${DEBUGGER_ADDRESS:=localhost:9222}
+          : ${SLEEP_BETWEEN_OK_RUNS:=3}
+          cat > frontend/.env <<EOF
+          API_BASE_URL=${API_BASE_URL}
+          DEBUGGER_ADDRESS=${DEBUGGER_ADDRESS}
+          SLEEP_BETWEEN_OK_RUNS=${SLEEP_BETWEEN_OK_RUNS}
+          EOF
+
+      - name: Create frontend .env (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          echo API_BASE_URL=%API_BASE_URL%>> frontend\.env
+          echo DEBUGGER_ADDRESS=localhost:9222>> frontend\.env
+          echo SLEEP_BETWEEN_OK_RUNS=3>> frontend\.env
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+
       - name: Package (Windows via .spec)
         if: runner.os == 'Windows'
         run: pyinstaller FaxAutomationClient.spec
+
+      - name: Copy .env into dist (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: copy /Y frontend\.env dist\.env
 
       - name: Package (macOS/Linux via script)
         if: runner.os != 'Windows'
