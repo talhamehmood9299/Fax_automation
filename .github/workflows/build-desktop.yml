@@ -37,6 +37,8 @@ jobs:
         shell: bash
         run: |
           : ${API_BASE_URL:=${{ secrets.API_BASE_URL }}}
+          : ${DEBUGGER_ADDRESS:=${{ vars.DEBUGGER_ADDRESS }}}
+          : ${SLEEP_BETWEEN_OK_RUNS:=${{ vars.SLEEP_BETWEEN_OK_RUNS }}}
           : ${DEBUGGER_ADDRESS:=localhost:9222}
           : ${SLEEP_BETWEEN_OK_RUNS:=3}
           cat > frontend/.env <<EOF
@@ -49,11 +51,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          echo API_BASE_URL=%API_BASE_URL%>> frontend\.env
-          echo DEBUGGER_ADDRESS=localhost:9222>> frontend\.env
-          echo SLEEP_BETWEEN_OK_RUNS=3>> frontend\.env
+          > frontend\.env (
+            echo API_BASE_URL=%API_BASE_URL%
+            echo DEBUGGER_ADDRESS=%DEBUGGER_ADDRESS%
+            echo SLEEP_BETWEEN_OK_RUNS=%SLEEP_BETWEEN_OK_RUNS%
+          )
         env:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          DEBUGGER_ADDRESS: ${{ vars.DEBUGGER_ADDRESS || 'localhost:9222' }}
+          SLEEP_BETWEEN_OK_RUNS: ${{ vars.SLEEP_BETWEEN_OK_RUNS || '3' }}
 
       - name: Package (Windows via .spec)
         if: runner.os == 'Windows'
@@ -68,6 +74,18 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: bash frontend/package.sh
+
+      - name: Verify packaged env presence
+        shell: bash
+        run: |
+          echo "Runner OS: $RUNNER_OS"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            ls -la dist/FaxAutomationClient.app/Contents/MacOS || true
+            [ -f dist/FaxAutomationClient.app/Contents/MacOS/.env ] && echo ".env present in app bundle"
+          else
+            ls -la dist || true
+            [ -f dist/.env ] && echo ".env present next to binary"
+          fi
 
       - name: Archive Linux build as tar.gz (preserve exec perms)
         if: runner.os == 'Linux'
