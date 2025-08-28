@@ -34,4 +34,4 @@
 
 ## Security & Configuration Tips
 - Never commit secrets. Place API keys in `backend/.env` and runtime overrides in `frontend/.env` or `dist/.env` (macOS: `dist/FaxAutomationClient.app/Contents/MacOS/.env`).
-- Backend does not run Selenium; keep browser automation in the client. Validate `CHROMEDRIVER_PATH` or place the binary next to the packaged executable.
+- Backend does not run Selenium; keep browser automation in the client. Place a matching `chromedriver` next to the packaged executable (the client ignores `CHROMEDRIVER_PATH`).

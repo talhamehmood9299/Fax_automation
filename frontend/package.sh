@@ -58,13 +58,6 @@ else
   echo "Note: ./chromedriver not found in repo root. Skipping copy."
 fi
 
-# Copy frontend/.env to the build output so the packaged app picks it up
-if [ -f ./frontend/.env ]; then
-  mkdir -p "$DEST_DIR"
-  cp -f ./frontend/.env "$DEST_DIR/.env"
-  echo "Copied frontend/.env to $DEST_DIR/.env"
-else
-  echo "Note: frontend/.env not found. The app will default to http://localhost:8000 unless a .env is placed next to the binary."
-fi
-
+# No .env needed; client now uses built-in settings
+echo "No .env copy needed; client uses built-in settings."
 echo "Build complete. Binary and (optional) chromedriver are in $DEST_DIR"

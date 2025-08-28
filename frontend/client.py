@@ -16,7 +16,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 import requests
-from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -34,86 +33,45 @@ except Exception:
         from talkehr_agent import TalkEHRBot  # type: ignore
 
 
-def _load_env_robust():
-    """Load .env for both source runs and PyInstaller onefile.
-
-    Priority:
-    1) .env next to the executable (PyInstaller onefile)
-    2) frontend/.env (this file's directory)
-    3) .env in current working directory
-    4) default dotenv search / OS env
-    """
-    try:
-        env_loaded = False
-        # If frozen by PyInstaller, sys.executable points to the bundled binary
-        if getattr(sys, "frozen", False):
-            exe_dir = os.path.dirname(sys.executable)
-            candidate = os.path.join(exe_dir, ".env")
-            if os.path.exists(candidate):
-                load_dotenv(candidate)
-                env_loaded = True
-        if not env_loaded:
-            # Prefer frontend/.env when running from source
-            here_env = os.path.join(os.path.dirname(__file__), ".env")
-            if os.path.exists(here_env):
-                load_dotenv(here_env)
-                env_loaded = True
-        if not env_loaded:
-            # Then try CWD .env
-            cwd_env = os.path.join(os.getcwd(), ".env")
-            if os.path.exists(cwd_env):
-                load_dotenv(cwd_env)
-                env_loaded = True
-        if not env_loaded:
-            load_dotenv()
-    except Exception:
-        # Best-effort; continue without .env
-        pass
-
-
 def _get_settings() -> dict:
-    """Load env at runtime and return settings.
-
-    Intentionally not called at import time to avoid involving
-    frontend/.env during packaging builds.
-    """
-    _load_env_robust()
+    """Return hardcoded client settings (no .env needed)."""
     return {
-        "API_BASE_URL": os.getenv("API_BASE_URL", "http://localhost:8000"),
-        "DEBUGGER_ADDRESS": os.getenv("DEBUGGER_ADDRESS", "localhost:9222"),
-        "SLEEP_BETWEEN_OK_RUNS": int(os.getenv("SLEEP_BETWEEN_OK_RUNS", "3")),
+        "API_BASE_URL": "https://aa4af14f7f47.ngrok.app/",
+        "DEBUGGER_ADDRESS": "localhost:9222",
+        "SLEEP_BETWEEN_OK_RUNS": 3,
     }
 
 
 def _discover_chromedriver() -> str | None:
-    """Find a chromedriver in a consistent, cross-platform way.
+    """Find chromedriver from the build directory or next to the binary.
 
     Priority:
-    1) CHROMEDRIVER_PATH env var if it exists
-    2) Same directory as the built binary (PyInstaller onefile)
+    1) Same directory as the packaged binary (PyInstaller)
+    2) Dist build directory in the repo (…/dist/chromedriver)
     3) Current working directory
-    4) Project root (repo root) and frontend/ directory
-    5) chromedriver on PATH (via Selenium Manager or system install)
-    """
-    # 1) Explicit env var
-    env_path = os.getenv("CHROMEDRIVER_PATH")
-    if env_path and os.path.exists(env_path):
-        return env_path
+    4) Project root and frontend/ directory
+    5) chromedriver on PATH (fallback)
 
+    Note: Intentionally ignores any CHROMEDRIVER_PATH from .env.
+    """
     exe_name = "chromedriver.exe" if os.name == "nt" else "chromedriver"
 
-    candidates = []
-    # 2) Next to the bundled executable (PyInstaller onefile)
+    candidates: list[str] = []
+
+    # 1) Next to the bundled executable (PyInstaller onefile)
     if getattr(sys, "frozen", False):
         exe_dir = os.path.dirname(sys.executable)
         candidates.append(os.path.join(exe_dir, exe_name))
 
-    # 3) Current working directory
-    candidates.append(os.path.join(os.getcwd(), exe_name))
-
-    # 4) Project root and frontend dir (use this file as anchor)
+    # 2) Dist build directory in the repo
     here = os.path.dirname(__file__)
     repo_root = os.path.abspath(os.path.join(here, ".."))
+    candidates.append(os.path.join(repo_root, "dist", exe_name))
+
+    # 3) Current working directory (e.g., when launched from dist/)
+    candidates.append(os.path.join(os.getcwd(), exe_name))
+
+    # 4) Project root and frontend dir (additional fallbacks)
     candidates.append(os.path.join(repo_root, exe_name))
     candidates.append(os.path.join(here, exe_name))
 
@@ -121,7 +79,7 @@ def _discover_chromedriver() -> str | None:
         if os.path.exists(p) and os.access(p, os.X_OK):
             return p
 
-    # 5) On PATH
+    # 5) On PATH as a last resort
     path_found = which("chromedriver") or which(exe_name)
     if path_found:
         return path_found

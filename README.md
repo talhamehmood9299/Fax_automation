@@ -70,23 +70,13 @@ Environment keys supported
   - `RAG_DB_DIR`: directory where the Chroma RAG DB persists (default `rag_corrections_db`)
   - Optional tool paths like `TESSERACT_CMD`
 - Frontend (`frontend/.env`):
-  - `CHROMEDRIVER_PATH` (optional): absolute path to `chromedriver`. If not set, the app auto-discovers one next to the built binary or on PATH.
-  - `DEBUGGER_ADDRESS`: e.g., `localhost:9222` for the remote Chrome session
-  - `SLEEP_BETWEEN_OK_RUNS`: seconds between successful Normal loop iterations
-  - Optional: `API_BASE_URL` if you adapt the client to read it
+  - Note: The client no longer reads `CHROMEDRIVER_PATH`; it auto-discovers a driver next to the built binary in `dist/` (or on PATH as fallback).
+  - You can customize UI behavior in code; `.env` is optional for the client.
 
 ### Frontend Env Loading (Build vs Runtime)
 
-- Packaging (`make package` or `frontend/package.sh`) does not read `frontend/.env`.
-- At runtime, the client loads env in this order:
-  1) `.env` next to the built executable (preferred for packaged builds)
-  2) `frontend/.env` (when running from source)
-  3) `.env` in the current working directory
-  4) OS environment variables
-
-Place a `.env` next to the packaged binary with at least `API_BASE_URL` and `DEBUGGER_ADDRESS`.
-  - Linux/Windows: `dist/.env`
-  - macOS: `dist/FaxAutomationClient.app/Contents/MacOS/.env`
+- Packaging (`make package` or `frontend/package.sh`) does not require a client `.env`.
+- The client uses built-in defaults for its settings. You can adapt the code if you need runtime overrides.
 
 ---
 
@@ -131,8 +121,8 @@ Notes:
 ### ChromeDriver Location (Unified Across OS)
 
 The client auto-discovers ChromeDriver using this order:
-- `CHROMEDRIVER_PATH` env var, if set and exists
-- Same directory as the built app (Windows: `dist/`, Linux: `dist/`, macOS: `dist/FaxAutomationClient.app/Contents/MacOS/`)
+- Same directory as the built app (Windows/Linux: `dist/`, macOS: `dist/FaxAutomationClient.app/Contents/MacOS/`)
+- `dist/` in the repo (when running from source)
 - Current working directory
 - Repo root and `frontend/`
 - On `PATH` (Selenium Manager/system install)
@@ -141,7 +131,7 @@ Packaging scripts copy `chromedriver` next to the built binary so the directory 
 - Linux/macOS: `frontend/package.sh` copies `./chromedriver` to `dist/` (macOS inside the `.app/Contents/MacOS`)
 - Windows: `frontend/package-win.bat` copies `chromedriver.exe` to `dist/`
 
-You can still override with `CHROMEDRIVER_PATH` if you prefer a custom location.
+Note: `CHROMEDRIVER_PATH` is ignored by the client.
 
 ### Run with Docker Compose
 
@@ -216,7 +206,7 @@ requirements.txt
 
 - Chrome Attach Fails:
   - Ensure Chrome was launched with `--remote-debugging-port=9222` and your `DEBUGGER_ADDRESS` matches.
-  - Ensure a matching ChromeDriver is next to the built app, on PATH, or set `CHROMEDRIVER_PATH` explicitly.
+- Ensure a matching ChromeDriver is next to the built app or on PATH. The client ignores `CHROMEDRIVER_PATH`.
 
 - OCR/Doc Conversion Issues:
   - Ensure Tesseract is installed and on PATH; `docling` expects it. You can set the command in code if needed.
