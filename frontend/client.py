@@ -20,6 +20,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from shutil import which
+import subprocess
+import platform
+from pathlib import Path
 
 try:
     # When running as a package (python -m frontend.client)
@@ -122,6 +125,9 @@ class App(tk.Tk):
         top = ttk.Frame(self)
         top.pack(fill=tk.X, padx=10, pady=10)
 
+        ttk.Button(top, text="Start Chrome (Debug Mode)", command=self.start_chrome_debug).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top, text="Attach/Verify Debugger", command=self.check_debugger).pack(side=tk.LEFT, padx=5)
+        ttk.Separator(top, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=6)
         ttk.Button(top, text="Start Normal Mode", command=self.start_normal).pack(side=tk.LEFT, padx=5)
         ttk.Button(top, text="Stop Normal", command=self.stop_normal).pack(side=tk.LEFT, padx=5)
         ttk.Button(top, text="Health Check", command=self.health_check).pack(side=tk.LEFT, padx=5)
@@ -181,6 +187,108 @@ class App(tk.Tk):
             f"Chrome debugger: {self.debugger_address}\n"
         )
         messagebox.showinfo("About", info)
+
+    # ----- Chrome Debugger helpers -----
+    def _debug_port(self) -> int:
+        try:
+            host, port = self.debugger_address.split(":", 1)
+            return int(port)
+        except Exception:
+            return 9222
+
+    def _chrome_candidates(self) -> list[str]:
+        system = platform.system().lower()
+        paths: list[str] = []
+        if system == "windows":
+            paths.extend([
+                r"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                r"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+            ])
+            # where on PATH
+            for name in ("chrome.exe", "google-chrome.exe"):
+                p = which(name)
+                if p:
+                    paths.append(p)
+        elif system == "darwin":
+            paths.append("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+            p = which("google-chrome")
+            if p:
+                paths.append(p)
+        else:  # linux and others
+            for name in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+                p = which(name)
+                if p:
+                    paths.append(p)
+        # Remove non-existent
+        return [p for p in paths if os.path.exists(p)]
+
+    def _debug_profile_dir(self) -> str:
+        system = platform.system().lower()
+        if system == "windows":
+            base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+            return str(Path(base) / "FaxAutomation" / "chrome-profile")
+        elif system == "darwin":
+            return str(Path.home() / "Library" / "Application Support" / "FaxAutomation" / "chrome-profile")
+        else:
+            return str(Path.home() / ".fax_automation" / "chrome-profile")
+
+    def check_debugger(self):
+        def _task():
+            try:
+                r = requests.get(f"http://{self.debugger_address}/json/version", timeout=2)
+                r.raise_for_status()
+                v = r.json().get("Browser", "")
+                self._log(f"Chrome debugger detected ({v}).")
+            except Exception as e:
+                self._log(f"Debugger not reachable on {self.debugger_address}: {e}")
+        threading.Thread(target=_task, daemon=True).start()
+
+    def start_chrome_debug(self):
+        port = self._debug_port()
+        profile_dir = self._debug_profile_dir()
+        os.makedirs(profile_dir, exist_ok=True)
+
+        # If already running, just report
+        try:
+            r = requests.get(f"http://{self.debugger_address}/json/version", timeout=1)
+            if r.ok:
+                self._log("Chrome debugger already running; using existing instance.")
+                return
+        except Exception:
+            pass
+
+        cands = self._chrome_candidates()
+        if not cands:
+            self._log("Could not find Chrome. Please install Google Chrome.")
+            messagebox.showerror("Chrome not found", "Google Chrome was not found on this system.")
+            return
+
+        chrome_path = cands[0]
+        args = [
+            chrome_path,
+            f"--remote-debugging-port={port}",
+            f"--user-data-dir={profile_dir}",
+            "--no-first-run",
+            "--no-default-browser-check",
+        ]
+        try:
+            subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self._log(f"Launched Chrome with debugger on port {port}.")
+            # Give it a moment and verify
+            def _verify():
+                for _ in range(10):
+                    try:
+                        r = requests.get(f"http://{self.debugger_address}/json/version", timeout=1.5)
+                        if r.ok:
+                            v = r.json().get("Browser", "")
+                            self._log(f"Debugger ready ({v}). You can now click 'Start Normal Mode'.")
+                            return
+                    except Exception:
+                        time.sleep(0.5)
+                self._log("Chrome started but debugger not reachable yet.")
+            threading.Thread(target=_verify, daemon=True).start()
+        except Exception as e:
+            self._log(f"Failed to launch Chrome: {e}")
 
     # ---- Normal Mode (local Selenium loop) ----
     def start_normal(self):
