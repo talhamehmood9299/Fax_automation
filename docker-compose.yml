@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
     env_file:
       - backend/.env
-    command: http --host-header=rewrite backend:8000
+    command: http --domain=fax.ngrok.app --host-header=rewrite backend:8000
     depends_on:
       - backend
     ports:

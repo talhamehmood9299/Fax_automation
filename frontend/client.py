@@ -39,7 +39,7 @@ except Exception:
 def _get_settings() -> dict:
     """Return hardcoded client settings (no .env needed)."""
     return {
-        "API_BASE_URL": "https://aa4af14f7f47.ngrok.app/",
+        "API_BASE_URL": "https://fax.ngrok.app",
         "DEBUGGER_ADDRESS": "localhost:9222",
         "SLEEP_BETWEEN_OK_RUNS": 3,
     }
